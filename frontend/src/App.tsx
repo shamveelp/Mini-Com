@@ -1,6 +1,34 @@
+import { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 
+import { getProducts, type Product } from './services/productService';
+
 const LandingPage = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+        setLoading(false);
+      } catch (error) {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  // Formatter for INR
+  const formatINR = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#AE2448]">
       {/* Floating Navbar Container */}
@@ -15,7 +43,7 @@ const LandingPage = () => {
           <div className="flex items-center">
             <ul className="flex items-center text-[#AE2448] font-black text-xs uppercase tracking-widest">
               <li>
-                <a href="#" className="hover:text-[#72BAA9] transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-[#72BAA9] after:scale-x-0 hover:after:scale-x-100 after:transition-transform px-4 py-2 bg-[#72BAA9]/10 rounded-full">
+                <a href="#products" className="hover:text-[#72BAA9] transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-[#72BAA9] after:scale-x-0 hover:after:scale-x-100 after:transition-transform px-4 py-2 bg-[#72BAA9]/10 rounded-full">
                   Products
                 </a>
               </li>
@@ -58,56 +86,58 @@ const LandingPage = () => {
             <h2 className="text-[#D5E7B5] font-black text-4xl uppercase tracking-tighter">Premium Collection</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              { name: "Mini-Com Pro", price: "$349", img: "/images/headset-black.png", tag: "Flagship", desc: "Studio-grade precision." },
-              { name: "Mini-Com Air", price: "$249", img: "/images/headset-white.png", tag: "Essential", desc: "Feather-light comfort." },
-              { name: "Mini-Com Classic", price: "$199", img: "/images/main.webp", tag: "Iconic", desc: "The original legend." }
-            ].map((product, idx) => (
-              <div key={idx} className="group relative bg-[#1a1a1a]/30 backdrop-blur-md rounded-[3rem] p-10 border border-[#72BAA9]/5 hover:border-[#72BAA9]/30 transition-all duration-700 hover:-translate-y-6 flex flex-col shadow-[0_30px_100px_rgba(0,0,0,0.2)]">
-                {/* Product Tag */}
-                <div className="absolute top-10 right-10 z-20">
-                   <span className="bg-[#D5E7B5] text-[#AE2448] text-[9px] font-black px-5 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg border border-[#72BAA9]/20">
-                     {product.tag}
-                   </span>
-                </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D5E7B5]"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              {products.map((product) => (
+                <div key={product.id} className="group relative bg-[#1a1a1a]/30 backdrop-blur-md rounded-[3rem] p-10 border border-[#72BAA9]/5 hover:border-[#72BAA9]/30 transition-all duration-700 hover:-translate-y-6 flex flex-col shadow-[0_30px_100px_rgba(0,0,0,0.2)]">
+                  {/* Product Tag */}
+                  <div className="absolute top-10 right-10 z-20">
+                    <span className="bg-[#D5E7B5] text-[#AE2448] text-[9px] font-black px-5 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg border border-[#72BAA9]/20">
+                      {product.tag}
+                    </span>
+                  </div>
 
-                {/* Image Container */}
-                <div className="relative h-72 flex items-center justify-center mb-10 overflow-visible">
-                  <div className="absolute inset-0 bg-[#72BAA9] rounded-full blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-1000"></div>
-                  <img 
-                    src={product.img} 
-                    alt={product.name} 
-                    className="max-h-full w-auto headset-shadow transform group-hover:scale-110 group-hover:rotate-2 transition-all duration-700 relative z-10"
-                  />
-                </div>
+                  {/* Image Container */}
+                  <div className="relative h-72 flex items-center justify-center mb-10 overflow-visible">
+                    <div className="absolute inset-0 bg-[#72BAA9] rounded-full blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-1000"></div>
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="max-h-full w-auto headset-shadow transform group-hover:scale-110 group-hover:rotate-2 transition-all duration-700 relative z-10"
+                    />
+                  </div>
 
-                {/* Content */}
-                <div className="flex-1">
-                  <h3 className="text-[#D5E7B5] font-black text-3xl uppercase tracking-tighter mb-2 group-hover:text-[#72BAA9] transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-[#D5E7B5]/40 text-xs font-bold uppercase tracking-widest mb-6">
-                    {product.desc}
-                  </p>
-                  <div className="flex items-end justify-between mb-10">
-                    <div className="flex flex-col">
-                      <span className="text-[#72BAA9] text-[10px] font-black uppercase tracking-widest mb-1">Price</span>
-                      <span className="text-[#D5E7B5] font-black text-3xl tracking-tight">{product.price}</span>
+                  {/* Content */}
+                  <div className="flex-1">
+                    <h3 className="text-[#D5E7B5] font-black text-3xl uppercase tracking-tighter mb-2 group-hover:text-[#72BAA9] transition-colors">
+                      {product.name}
+                    </h3>
+                    <p className="text-[#D5E7B5]/40 text-xs font-bold uppercase tracking-widest mb-6">
+                      {product.description}
+                    </p>
+                    <div className="flex items-end justify-between mb-10">
+                      <div className="flex flex-col">
+                        <span className="text-[#72BAA9] text-[10px] font-black uppercase tracking-widest mb-1">Price</span>
+                        <span className="text-[#D5E7B5] font-black text-3xl tracking-tight">{formatINR(product.price)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Button */}
-                <button className="w-full bg-[#D5E7B5] text-[#AE2448] font-black py-5 rounded-2xl hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 shadow-2xl flex items-center justify-center gap-3 group/btn relative overflow-hidden border-b-4 border-[#72BAA9]/20 hover:border-transparent">
-                  <span className="relative z-10 uppercase tracking-widest text-xs">Go to checkout</span>
-                  <div className="w-6 h-6 rounded-full bg-[#AE2448]/10 flex items-center justify-center group-hover/btn:bg-[#D5E7B5]/20 transition-colors relative z-10">
-                    <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              </div>
-            ))}
-          </div>
+                  {/* Button */}
+                  <button className="w-full bg-[#D5E7B5] text-[#AE2448] font-black py-5 rounded-2xl hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 shadow-2xl flex items-center justify-center gap-3 group/btn relative overflow-hidden border-b-4 border-[#72BAA9]/20 hover:border-transparent">
+                    <span className="relative z-10 uppercase tracking-widest text-xs">Go to checkout</span>
+                    <div className="w-6 h-6 rounded-full bg-[#AE2448]/10 flex items-center justify-center group-hover/btn:bg-[#D5E7B5]/20 transition-colors relative z-10">
+                      <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

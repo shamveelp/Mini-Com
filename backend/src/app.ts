@@ -1,0 +1,58 @@
+import express from 'express';
+import type { Request, Response } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import connectDB from './config/db.js';
+
+dotenv.config();
+
+const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+app.use(express.json());
+
+// Connect to Database (Configured as requested, though products are now static)
+connectDB();
+
+// Static Products Data
+const products = [
+  { 
+    id: "1",
+    name: "Mini-Com Pro", 
+    description: "Studio-grade precision for professionals.", 
+    price: 28999, 
+    image: "/images/headset-black.png", 
+    tag: "Flagship" 
+  },
+  { 
+    id: "2",
+    name: "Mini-Com Air", 
+    description: "Feather-light comfort for all-day use.", 
+    price: 19999, 
+    image: "/images/headset-white.png", 
+    tag: "Essential" 
+  },
+  { 
+    id: "3",
+    name: "Mini-Com Classic", 
+    description: "The original legend, refined for the modern age.", 
+    price: 15999, 
+    image: "/images/main.webp", 
+    tag: "Iconic" 
+  }
+];
+
+// Routes
+app.get('/api/products', (req: Request, res: Response) => {
+  res.json(products);
+});
+
+app.get('/', (req: Request, res: Response) => {
+  res.send('Mini-Com API is running with static data...');
+});
+
+export default app;
