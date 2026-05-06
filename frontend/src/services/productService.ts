@@ -28,9 +28,9 @@ export const getProducts = async (): Promise<Product[]> => {
   }
 };
 
-export const createOrder = async (amount: number, receipt?: string) => {
+export const createOrder = async (amount: number, receipt?: string, idempotencyKey?: string) => {
   try {
-    const response = await api.post('/orders', { amount, receipt });
+    const response = await api.post('/orders', { amount, receipt, idempotencyKey });
     return response.data;
   } catch (error) {
     console.error('Error creating order:', error);

@@ -28,7 +28,8 @@ const Checkout = () => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const order = await createOrder(product.price);
+      const idempotencyKey = `idemp_${product.id}_${Date.now()}`;
+      const order = await createOrder(product.price, undefined, idempotencyKey);
       
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || '', // We need to add this to frontend .env

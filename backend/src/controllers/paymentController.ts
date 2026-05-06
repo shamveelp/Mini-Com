@@ -3,14 +3,14 @@ import paymentService from '../services/paymentService.js';
 
 class PaymentController {
   async createOrder(req: Request, res: Response) {
-    const { amount, currency, receipt } = req.body;
+    const { amount, currency, receipt, idempotencyKey } = req.body;
     
     if (!amount) {
       return res.status(400).json({ message: 'Amount is required' });
     }
 
     try {
-      const order = await paymentService.createOrder(amount, currency, receipt);
+      const order = await paymentService.createOrder(amount, currency, receipt, idempotencyKey);
       res.json(order);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -36,6 +36,17 @@ class PaymentController {
       } else {
         res.status(400).json({ message: 'Invalid signature' });
       }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async handleWebhook(req: Request, res: Response) {
+    try {
+      // Razorpay sends webhook signature in 'x-razorpay-signature' header
+      const signature = req.headers['x-razorpay-signature'] as string;
+      await paymentService.handleWebhook(req.body, signature);
+      res.status(200).send('OK');
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
