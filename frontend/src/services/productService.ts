@@ -28,4 +28,14 @@ export const getProducts = async (): Promise<Product[]> => {
   }
 };
 
+export const createOrder = async (amount: number, receipt?: string) => {
+  try {
+    const response = await api.post('/orders', { amount, receipt });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating order:', error);
+    throw error;
+  }
+};
+
 export default api;

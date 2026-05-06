@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-
 import { getProducts, type Product } from './services/productService';
+import Checkout from './pages/Checkout';
+import Navbar from './components/Navbar';
 
-const LandingPage = () => {
+const Home = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -20,7 +23,6 @@ const LandingPage = () => {
     loadProducts();
   }, []);
 
-  // Formatter for INR
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -31,27 +33,6 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#AE2448]">
-      {/* Floating Navbar Container */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4 pointer-events-none">
-        <nav className="bg-[#D5E7B5] rounded-full px-10 py-4 shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex items-center justify-between border-b-4 border-[#72BAA9]/30 backdrop-blur-md pointer-events-auto">
-          {/* Logo */}
-          <div className="flex items-center group cursor-pointer">
-            <span className="text-[#AE2448] font-black text-xl tracking-tighter uppercase italic">Mini-Com</span>
-          </div>
-
-          {/* Navigation Menu */}
-          <div className="flex items-center">
-            <ul className="flex items-center text-[#AE2448] font-black text-xs uppercase tracking-widest">
-              <li>
-                <a href="#products" className="hover:text-[#72BAA9] transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-[#72BAA9] after:scale-x-0 hover:after:scale-x-100 after:transition-transform px-4 py-2 bg-[#72BAA9]/10 rounded-full">
-                  Products
-                </a>
-              </li>
-            </ul>
-          </div>
-        </nav>
-      </div>
-
       {/* Hero Section */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-8 pt-40 flex flex-col md:flex-row items-center relative overflow-hidden">
         {/* Left Side: Image */}
@@ -128,7 +109,10 @@ const LandingPage = () => {
                   </div>
 
                   {/* Button */}
-                  <button className="w-full bg-[#D5E7B5] text-[#AE2448] font-black py-5 rounded-2xl hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 shadow-2xl flex items-center justify-center gap-3 group/btn relative overflow-hidden border-b-4 border-[#72BAA9]/20 hover:border-transparent">
+                  <button 
+                    onClick={() => navigate('/checkout', { state: { product } })}
+                    className="w-full bg-[#D5E7B5] text-[#AE2448] font-black py-5 rounded-2xl hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 shadow-2xl flex items-center justify-center gap-3 group/btn relative overflow-hidden border-b-4 border-[#72BAA9]/20 hover:border-transparent"
+                  >
                     <span className="relative z-10 uppercase tracking-widest text-xs">Go to checkout</span>
                     <div className="w-6 h-6 rounded-full bg-[#AE2448]/10 flex items-center justify-center group-hover/btn:bg-[#D5E7B5]/20 transition-colors relative z-10">
                       <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
@@ -168,4 +152,16 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage;
+const App = () => {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/checkout" element={<Checkout />} />
+      </Routes>
+    </>
+  );
+};
+
+export default App;

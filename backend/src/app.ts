@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import logger from './utils/logger.js';
+import razorpayInstance from './config/razorpay.js';
 
 dotenv.config();
 
@@ -56,6 +57,30 @@ const products = [
 ];
 
 // Routes
+app.post('/api/orders', async (req: Request, res: Response) => {
+  const { amount, currency = 'INR', receipt } = req.body;
+
+  try {
+    const options = {
+      amount: amount, // Frontend should pass the amount. Note: we multiply by 100 below if needed or assume it's already in INR units.
+      // Actually, Razorpay expects amount in PASE. Let's handle it here.
+    };
+
+    const orderOptions = {
+      amount: Math.round(amount * 100), // Convert to paise
+      currency,
+      receipt: receipt || `receipt_${Date.now()}`,
+    };
+
+    const order = await razorpayInstance.orders.create(orderOptions);
+    logger.info(`Razorpay Order Created: ${order.id}`);
+    res.json(order);
+  } catch (error: any) {
+    logger.error(`Razorpay Order Error: ${error.message}`);
+    res.status(500).json({ message: 'Error creating Razorpay order' });
+  }
+});
+
 app.get('/api/products', (req: Request, res: Response) => {
   res.json(products);
 });
