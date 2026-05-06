@@ -38,4 +38,18 @@ export const createOrder = async (amount: number, receipt?: string) => {
   }
 };
 
+export const verifyPayment = async (verificationData: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) => {
+  try {
+    const response = await api.post('/verify', verificationData);
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    throw error;
+  }
+};
+
 export default api;

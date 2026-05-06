@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -78,6 +79,29 @@ app.post('/api/orders', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error(`Razorpay Order Error: ${error.message}`);
     res.status(500).json({ message: 'Error creating Razorpay order' });
+  }
+});
+
+app.post('/api/verify', async (req: Request, res: Response) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+  try {
+    const sign = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSign = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || '')
+      .update(sign.toString())
+      .digest("hex");
+
+    if (razorpay_signature === expectedSign) {
+      logger.info(`Payment Verified: ${razorpay_payment_id}`);
+      return res.status(200).json({ message: "Payment verified successfully" });
+    } else {
+      logger.error(`Invalid Signature for payment: ${razorpay_payment_id}`);
+      return res.status(400).json({ message: "Invalid signature sent!" });
+    }
+  } catch (error: any) {
+    logger.error(`Verification Error: ${error.message}`);
+    res.status(500).json({ message: 'Error verifying payment' });
   }
 });
 

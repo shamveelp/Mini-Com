@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createOrder, type Product } from '../services/productService';
+import { createOrder, verifyPayment, type Product } from '../services/productService';
 import { ArrowRight, ChevronLeft, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 const Checkout = () => {
@@ -37,25 +37,49 @@ const Checkout = () => {
         name: 'Mini-Com',
         description: `Purchase of ${product.name}`,
         order_id: order.id,
-        handler: function (response: any) {
-          alert(`Payment Successful! ID: ${response.razorpay_payment_id}`);
-          navigate('/');
+        handler: async function (response: any) {
+          try {
+            setLoading(true);
+            await verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            navigate(`/success?payment_id=${response.razorpay_payment_id}`);
+          } catch (error) {
+            console.error('Verification failed:', error);
+            navigate('/failure');
+          } finally {
+            setLoading(false);
+          }
         },
         prefill: {
           name: 'Customer Name',
           email: 'customer@example.com',
-          contact: '9999999999',
+          contact: '9464616497',
         },
         theme: {
           color: '#AE2448',
         },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+            navigate('/failure');
+          },
+        },
       };
 
       const rzp = new (window as any).Razorpay(options);
+      
+      rzp.on('payment.failed', function (response: any) {
+        console.error('Payment failed:', response.error);
+        navigate('/failure');
+      });
+
       rzp.open();
     } catch (error) {
       console.error('Payment Error:', error);
-      alert('Failed to initialize payment.');
+      navigate('/failure');
     } finally {
       setLoading(false);
     }
