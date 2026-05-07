@@ -52,9 +52,12 @@ const Home = () => {
 
         {/* Right Side: Content */}
         <div className="w-full md:w-1/2 z-10 flex flex-col items-start text-left md:pl-16 py-12">
-          <h1 className="text-[#D5E7B5] font-black text-6xl md:text-8xl leading-tight mb-12 tracking-tighter uppercase">
+          <h1 className="text-[#D5E7B5] font-black text-6xl md:text-8xl leading-tight mb-4 tracking-tighter uppercase">
             PURE <span className="text-[#72BAA9]">SOUND.</span>
           </h1>
+          <p className="text-[#D5E7B5]/60 font-bold uppercase tracking-widest mb-12 max-w-md leading-relaxed">
+            High-Performance Resilient Payment Orchestrator for Modern Commerce.
+          </p>
 
           <a href="#products" className="bg-[#D5E7B5] text-[#AE2448] font-black text-xl px-16 py-7 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 transform hover:-translate-y-2 active:scale-95 flex items-center justify-center border-b-8 border-[#72BAA9]/20">
             EXPLORE

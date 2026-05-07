@@ -1,4 +1,6 @@
-# Mini-Com API Documentation
+# Mini-Com: High-Performance Resilient Payment Orchestrator API
+
+State-of-the-art payment orchestration API designed for modern commerce.
 
 ## Base URL
 `http://localhost:5000/api`

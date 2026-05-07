@@ -1,6 +1,6 @@
-# 🎧 Mini-Com: Resilient Payment Processing System
+# 🎧 Mini-Com: High-Performance Resilient Payment Orchestrator
 
-Mini-Com is a high-performance, resilient E-commerce backend and frontend designed to simulate real-world payment gateway behaviors. Built with a focus on reliability, scalability, and robust error handling, it demonstrates advanced patterns like Idempotency, Concurrency Control, and Circuit Breakers.
+Mini-Com is a state-of-the-art payment orchestration platform designed for modern commerce. Built with a focus on reliability, scalability, and robust error handling, it demonstrates advanced patterns like Idempotency, Concurrency Control, and Circuit Breakers.
 
 ---
 
