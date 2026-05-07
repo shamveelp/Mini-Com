@@ -5,6 +5,7 @@ import { getProducts, type Product } from './services/productService';
 import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Failure from './pages/Failure';
+import PaymentSession from './pages/PaymentSession';
 import Navbar from './components/Navbar';
 
 const Home = () => {
@@ -161,6 +162,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/payment/:customId" element={<PaymentSession />} />
         <Route path="/success" element={<Success />} />
         <Route path="/failure" element={<Failure />} />
       </Routes>

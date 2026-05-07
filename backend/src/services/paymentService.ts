@@ -4,7 +4,7 @@ import logger from '../utils/logger.js';
 import paymentRepository from '../repositories/paymentRepository.js';
 import Payment, { type IPayment, PaymentStatus } from '../models/Payment.js';
 import gatewaySimulator from './gatewaySimulator.js';
-import { sleep, exponentialBackoff } from '../utils/common.js';
+import { sleep, exponentialBackoff, generateCustomId } from '../utils/common.js';
 import circuitBreaker from '../utils/CircuitBreaker.js';
 
 class PaymentService {
@@ -19,6 +19,7 @@ class PaymentService {
         logger.info(`[Idempotency] Existing payment found for key: ${idempotencyKey}. Status: ${existing.status}`);
         return {
           id: existing.razorpayOrderId,
+          customId: existing.customId,
           amount: existing.amount,
           currency: existing.currency,
           status: existing.status,
@@ -35,25 +36,46 @@ class PaymentService {
 
     try {
       const order = await razorpayInstance.orders.create(orderOptions);
+      const customId = generateCustomId();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
       
       if (idempotencyKey) {
         await paymentRepository.create({
           orderId: order.receipt || `receipt_${Date.now()}`,
+          customId,
           razorpayOrderId: order.id,
           amount: Number(order.amount),
           currency: order.currency,
           status: PaymentStatus.PENDING,
           idempotencyKey,
-          attempts: 0
+          attempts: 0,
+          expiresAt
         });
       }
 
-      logger.info(`[Lifecycle] Order created successfully: ${order.id}`);
-      return order;
+      logger.info(`[Lifecycle] Order created successfully: ${order.id}, Session: ${customId}`);
+      return { ...order, customId };
     } catch (error: any) {
       logger.error(`[Error] Order creation failed: ${error.message}`);
       throw new Error('Failed to initialize payment process');
     }
+  }
+
+  async getPaymentByCustomId(customId: string) {
+    const payment = await paymentRepository.findByCustomId(customId);
+    if (!payment) throw new Error('Payment session not found');
+    
+    const isExpired = new Date() > payment.expiresAt;
+    
+    return {
+      customId: payment.customId,
+      razorpayOrderId: payment.razorpayOrderId,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
+      expiresAt: payment.expiresAt,
+      isExpired
+    };
   }
 
   async verifyPayment(orderId: string, paymentId: string, signature: string) {
@@ -65,19 +87,31 @@ class PaymentService {
       throw new Error('Payment record not found');
     }
 
+    // Check expiration for retries
+    if (new Date() > payment.expiresAt) {
+      logger.warn(`[Lifecycle] Payment ${orderId} has expired`);
+      await paymentRepository.updateStatus(payment._id.toString(), PaymentStatus.FAILED, {
+        lastError: 'Session expired'
+      });
+      throw new Error('Payment session has expired');
+    }
+
     if (payment.status === PaymentStatus.SUCCESS) {
       logger.info(`[Lifecycle] Payment ${orderId} already marked as SUCCESS`);
       return true;
     }
 
+    // Allow retry if FAILED or PENDING
+    const allowedStatuses = [PaymentStatus.PENDING, PaymentStatus.FAILED];
+    
     const processingPayment = await paymentRepository.transitionStatus(
       payment._id.toString(),
-      [PaymentStatus.PENDING],
+      allowedStatuses,
       PaymentStatus.PROCESSING
     );
 
     if (!processingPayment) {
-      logger.warn(`[Concurrency] Payment ${orderId} is already being processed or is in a terminal state (${payment.status})`);
+      logger.warn(`[Concurrency] Payment ${orderId} is already being processed`);
       throw new Error('Payment is currently being processed');
     }
 
@@ -104,26 +138,18 @@ class PaymentService {
       while (attempt < this.MAX_RETRIES && !success) {
         try {
           logger.info(`[Retry] Attempt ${attempt + 1} to process payment via External Gateway...`);
-          
-          // Using Circuit Breaker to wrap the external call
           await circuitBreaker.execute(() => gatewaySimulator.processPayment(payment.amount));
-          
           success = true;
           logger.info(`[Retry] External Gateway success on attempt ${attempt + 1}`);
         } catch (error: any) {
           if (error.message === 'SERVICE_UNAVAILABLE_CIRCUIT_OPEN') {
             throw new Error('Payment service is temporarily down. Please try again later.');
           }
-
           attempt++;
           logger.error(`[Retry] External Gateway failure on attempt ${attempt}: ${error.message}`);
-          
           if (attempt < this.MAX_RETRIES) {
-            const delay = exponentialBackoff(attempt);
-            logger.info(`[Retry] Scheduling retry ${attempt + 1} in ${delay}ms`);
-            await sleep(delay);
+            await sleep(exponentialBackoff(attempt));
           } else {
-            logger.error(`[Retry] Max retries reached for payment ${orderId}`);
             throw error;
           }
         }
@@ -144,22 +170,13 @@ class PaymentService {
     }
   }
 
-  // 8. Webhook Handling
   async handleWebhook(payload: any, signature: string) {
-    // In a real app, verify Razorpay webhook signature here
     const { event, payload: eventData } = payload;
     const razorpayOrderId = eventData.payment.entity.order_id;
-
     logger.info(`Webhook received: ${event} for order ${razorpayOrderId}`);
-
     const payment = await paymentRepository.findByRazorpayOrderId(razorpayOrderId);
     if (!payment) return;
-
-    // Handle conflicting states
-    if (payment.status === PaymentStatus.SUCCESS) {
-      logger.info('Payment already successful, ignoring webhook');
-      return;
-    }
+    if (payment.status === PaymentStatus.SUCCESS) return;
 
     if (event === 'payment.captured') {
       await paymentRepository.updateStatus(payment._id.toString(), PaymentStatus.SUCCESS, {

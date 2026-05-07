@@ -10,6 +10,10 @@ class PaymentRepository {
     return await Payment.findOne({ idempotencyKey: key });
   }
 
+  async findByCustomId(customId: string): Promise<IPayment | null> {
+    return await Payment.findOne({ customId });
+  }
+
   async findByRazorpayOrderId(orderId: string): Promise<IPayment | null> {
     return await Payment.findOne({ razorpayOrderId: orderId });
   }

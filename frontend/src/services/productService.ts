@@ -38,6 +38,16 @@ export const createOrder = async (amount: number, receipt?: string, idempotencyK
   }
 };
 
+export const getPaymentStatus = async (customId: string) => {
+  try {
+    const response = await api.get(`/status/${customId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching payment status:', error);
+    throw error;
+  }
+};
+
 export const verifyPayment = async (verificationData: {
   razorpay_order_id: string;
   razorpay_payment_id: string;

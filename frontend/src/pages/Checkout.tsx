@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createOrder, verifyPayment, type Product } from '../services/productService';
+import { createOrder, type Product } from '../services/productService';
 import { ArrowRight, ChevronLeft, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 const Checkout = () => {
@@ -13,73 +13,18 @@ const Checkout = () => {
     if (!product) {
       navigate('/');
     }
-    
-    // Load Razorpay Script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
   }, [product, navigate]);
 
-  const handlePayment = async () => {
+  const handleCreateSession = async () => {
     setLoading(true);
     try {
       const idempotencyKey = `idemp_${product.id}_${Date.now()}`;
       const order = await createOrder(product.price, undefined, idempotencyKey);
       
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || '', // We need to add this to frontend .env
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Mini-Com',
-        description: `Purchase of ${product.name}`,
-        order_id: order.id,
-        handler: async function (response: any) {
-          try {
-            setLoading(true);
-            await verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            navigate(`/success?payment_id=${response.razorpay_payment_id}`);
-          } catch (error) {
-            console.error('Verification failed:', error);
-            navigate('/failure', { state: { product } });
-          } finally {
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: 'Customer Name',
-          email: 'customer@example.com',
-          contact: '9464616497',
-        },
-        theme: {
-          color: '#AE2448',
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-            navigate('/failure', { state: { product } });
-          },
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      
-      rzp.on('payment.failed', function (response: any) {
-        console.error('Payment failed:', response.error);
-        navigate('/failure', { state: { product } });
-      });
-
-      rzp.open();
+      // Redirect to the dedicated payment session page
+      navigate(`/payment/${order.customId}`, { state: { product } });
     } catch (error) {
-      console.error('Payment Error:', error);
+      console.error('Session Creation Error:', error);
       navigate('/failure', { state: { product } });
     } finally {
       setLoading(false);
@@ -139,36 +84,28 @@ const Checkout = () => {
         {/* Right Side: Features/Checkout */}
         <div className="w-full md:w-[400px] flex flex-col gap-8">
           <div className="bg-[#D5E7B5] rounded-[3rem] p-10 text-[#AE2448] shadow-2xl">
-            <h3 className="text-2xl font-black uppercase tracking-tight mb-8">Secure Checkout</h3>
+            <h3 className="text-2xl font-black uppercase tracking-tight mb-8">Ready to Pay</h3>
             
             <div className="space-y-6 mb-12">
               <div className="flex items-center gap-4">
                 <ShieldCheck className="text-[#72BAA9]" />
-                <span className="text-sm font-bold uppercase tracking-widest">Encrypted Payment</span>
+                <span className="text-sm font-bold uppercase tracking-widest">Secure Session</span>
               </div>
               <div className="flex items-center gap-4">
                 <Zap className="text-[#72BAA9]" />
-                <span className="text-sm font-bold uppercase tracking-widest">Instant Activation</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <Globe className="text-[#72BAA9]" />
-                <span className="text-sm font-bold uppercase tracking-widest">Global Support</span>
+                <span className="text-sm font-bold uppercase tracking-widest">10 Min Retry Window</span>
               </div>
             </div>
 
             <button 
-              onClick={handlePayment}
+              onClick={handleCreateSession}
               disabled={loading}
               className="w-full bg-[#AE2448] text-[#D5E7B5] font-black py-6 rounded-2xl hover:bg-[#72BAA9] transition-all duration-500 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {loading ? 'INITIALIZING...' : 'PAY NOW'}
+              {loading ? 'CREATING SESSION...' : 'PROCEED TO PAYMENT'}
               <ArrowRight size={20} />
             </button>
           </div>
-
-          <p className="text-center text-[10px] font-bold text-[#D5E7B5]/40 uppercase tracking-[0.2em] px-10">
-            By clicking Pay Now, you agree to Mini-Com's Terms of Service and Privacy Policy.
-          </p>
         </div>
       </div>
     </div>

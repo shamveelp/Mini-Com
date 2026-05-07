@@ -17,6 +17,18 @@ class PaymentController {
     }
   }
 
+  async getPaymentStatus(req: Request, res: Response) {
+    const customId = req.params.customId as string;
+    if (!customId) return res.status(400).json({ message: 'Custom ID is required' });
+
+    try {
+      const status = await paymentService.getPaymentByCustomId(customId);
+      res.json(status);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message });
+    }
+  }
+
   async verifyPayment(req: Request, res: Response) {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
