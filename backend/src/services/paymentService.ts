@@ -5,16 +5,18 @@ import paymentRepository from '../repositories/paymentRepository.js';
 import Payment, { type IPayment, PaymentStatus } from '../models/Payment.js';
 import gatewaySimulator from './gatewaySimulator.js';
 import { sleep, exponentialBackoff } from '../utils/common.js';
+import circuitBreaker from '../utils/CircuitBreaker.js';
 
 class PaymentService {
   private readonly MAX_RETRIES = 3;
 
   async createOrder(amount: number, currency: string = 'INR', receipt?: string, idempotencyKey?: string) {
-    // 1. Idempotency Check
+    logger.info(`Initiating order creation: amount=${amount}, currency=${currency}, key=${idempotencyKey}`);
+    
     if (idempotencyKey) {
       const existing = await paymentRepository.findByIdempotencyKey(idempotencyKey);
       if (existing) {
-        logger.info(`Idempotent request detected for key: ${idempotencyKey}`);
+        logger.info(`[Idempotency] Existing payment found for key: ${idempotencyKey}. Status: ${existing.status}`);
         return {
           id: existing.razorpayOrderId,
           amount: existing.amount,
@@ -26,16 +28,14 @@ class PaymentService {
     }
 
     const orderOptions = {
-      amount: Math.round(amount * 100), // Convert to paise
+      amount: Math.round(amount * 100),
       currency,
       receipt: receipt || `receipt_${Date.now()}`,
     };
 
     try {
-      // 2. Create Razorpay Order
       const order = await razorpayInstance.orders.create(orderOptions);
       
-      // 3. Initialize Payment Record (PENDING)
       if (idempotencyKey) {
         await paymentRepository.create({
           orderId: order.receipt || `receipt_${Date.now()}`,
@@ -48,23 +48,28 @@ class PaymentService {
         });
       }
 
-      logger.info(`Razorpay Order Created & Initialized: ${order.id}`);
+      logger.info(`[Lifecycle] Order created successfully: ${order.id}`);
       return order;
     } catch (error: any) {
-      logger.error(`Order Creation Error: ${error.message}`);
+      logger.error(`[Error] Order creation failed: ${error.message}`);
       throw new Error('Failed to initialize payment process');
     }
   }
 
   async verifyPayment(orderId: string, paymentId: string, signature: string) {
-    // 4. Concurrency Control & Atomic Transition
+    logger.info(`Starting payment verification for Order: ${orderId}`);
+    
     const payment = await paymentRepository.findByRazorpayOrderId(orderId);
-    if (!payment) throw new Error('Payment record not found');
+    if (!payment) {
+      logger.error(`[Error] Payment record not found for Order ID: ${orderId}`);
+      throw new Error('Payment record not found');
+    }
 
-    if (payment.status === PaymentStatus.SUCCESS) return true;
-    if (payment.status === PaymentStatus.FAILED) throw new Error('Payment already failed');
+    if (payment.status === PaymentStatus.SUCCESS) {
+      logger.info(`[Lifecycle] Payment ${orderId} already marked as SUCCESS`);
+      return true;
+    }
 
-    // Attempt to move to PROCESSING
     const processingPayment = await paymentRepository.transitionStatus(
       payment._id.toString(),
       [PaymentStatus.PENDING],
@@ -72,13 +77,13 @@ class PaymentService {
     );
 
     if (!processingPayment) {
-      // If transition failed, someone else is already processing this payment
-      logger.warn(`Concurrency block: Payment ${orderId} is already being processed`);
+      logger.warn(`[Concurrency] Payment ${orderId} is already being processed or is in a terminal state (${payment.status})`);
       throw new Error('Payment is currently being processed');
     }
 
+    logger.info(`[Lifecycle] Payment ${orderId} transitioned to PROCESSING`);
+
     try {
-      // 5. Signature Verification (Security)
       const sign = orderId + "|" + paymentId;
       const expectedSign = crypto
         .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || '')
@@ -86,42 +91,52 @@ class PaymentService {
         .digest("hex");
 
       if (signature !== expectedSign) {
+        logger.error(`[Security] Invalid signature for order: ${orderId}`);
         await paymentRepository.updateStatus(payment._id.toString(), PaymentStatus.FAILED, {
           lastError: 'Invalid Signature'
         });
         return false;
       }
 
-      // 6. External Gateway Simulation with Retry Logic
       let success = false;
       let attempt = 0;
 
       while (attempt < this.MAX_RETRIES && !success) {
         try {
-          await gatewaySimulator.processPayment(payment.amount);
+          logger.info(`[Retry] Attempt ${attempt + 1} to process payment via External Gateway...`);
+          
+          // Using Circuit Breaker to wrap the external call
+          await circuitBreaker.execute(() => gatewaySimulator.processPayment(payment.amount));
+          
           success = true;
+          logger.info(`[Retry] External Gateway success on attempt ${attempt + 1}`);
         } catch (error: any) {
+          if (error.message === 'SERVICE_UNAVAILABLE_CIRCUIT_OPEN') {
+            throw new Error('Payment service is temporarily down. Please try again later.');
+          }
+
           attempt++;
-          logger.error(`Gateway Attempt ${attempt} failed: ${error.message}`);
+          logger.error(`[Retry] External Gateway failure on attempt ${attempt}: ${error.message}`);
           
           if (attempt < this.MAX_RETRIES) {
             const delay = exponentialBackoff(attempt);
-            logger.info(`Retrying in ${delay}ms...`);
+            logger.info(`[Retry] Scheduling retry ${attempt + 1} in ${delay}ms`);
             await sleep(delay);
           } else {
+            logger.error(`[Retry] Max retries reached for payment ${orderId}`);
             throw error;
           }
         }
       }
 
-      // 7. Final Status Update
       await paymentRepository.updateStatus(payment._id.toString(), PaymentStatus.SUCCESS, {
         razorpayPaymentId: paymentId
       });
 
+      logger.info(`[Lifecycle] Payment ${orderId} successfully verified and processed`);
       return true;
     } catch (error: any) {
-      logger.error(`Verification/Processing Error: ${error.message}`);
+      logger.error(`[Lifecycle] Payment ${orderId} failed: ${error.message}`);
       await paymentRepository.updateStatus(payment._id.toString(), PaymentStatus.FAILED, {
         lastError: error.message
       });

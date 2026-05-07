@@ -1,8 +1,10 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { XCircle, RefreshCcw, ArrowLeft } from 'lucide-react';
 
 const Failure = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const product = location.state?.product;
 
   return (
     <div className="min-h-screen bg-[#AE2448] text-[#D5E7B5] font-['Outfit'] flex items-center justify-center px-8">
@@ -32,7 +34,7 @@ const Failure = () => {
 
         <div className="flex flex-col md:flex-row gap-6 justify-center">
           <button 
-            onClick={() => navigate('/checkout')}
+            onClick={() => navigate('/checkout', { state: { product } })}
             className="flex-1 bg-[#D5E7B5] text-[#AE2448] font-black py-6 rounded-2xl hover:bg-[#72BAA9] hover:text-[#D5E7B5] transition-all duration-500 shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
           >
             <RefreshCcw size={20} />

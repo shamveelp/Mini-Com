@@ -38,7 +38,4 @@ const PaymentSchema: Schema = new Schema({
   metadata: { type: Schema.Types.Mixed }
 }, { timestamps: true });
 
-// Index for idempotency lookups
-PaymentSchema.index({ idempotencyKey: 1 });
-
 export default mongoose.model<IPayment>('Payment', PaymentSchema);

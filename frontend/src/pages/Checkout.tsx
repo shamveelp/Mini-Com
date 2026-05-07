@@ -49,7 +49,7 @@ const Checkout = () => {
             navigate(`/success?payment_id=${response.razorpay_payment_id}`);
           } catch (error) {
             console.error('Verification failed:', error);
-            navigate('/failure');
+            navigate('/failure', { state: { product } });
           } finally {
             setLoading(false);
           }
@@ -65,7 +65,7 @@ const Checkout = () => {
         modal: {
           ondismiss: function () {
             setLoading(false);
-            navigate('/failure');
+            navigate('/failure', { state: { product } });
           },
         },
       };
@@ -74,13 +74,13 @@ const Checkout = () => {
       
       rzp.on('payment.failed', function (response: any) {
         console.error('Payment failed:', response.error);
-        navigate('/failure');
+        navigate('/failure', { state: { product } });
       });
 
       rzp.open();
     } catch (error) {
       console.error('Payment Error:', error);
-      navigate('/failure');
+      navigate('/failure', { state: { product } });
     } finally {
       setLoading(false);
     }
