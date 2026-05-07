@@ -13,6 +13,7 @@ const PaymentSession = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
+  const [localExpired, setLocalExpired] = useState(false);
 
   useEffect(() => {
     fetchSession();
@@ -39,6 +40,7 @@ const PaymentSession = () => {
 
       if (diff <= 0) {
         setTimeLeft('EXPIRED');
+        setLocalExpired(true);
         clearInterval(interval);
       } else {
         const mins = Math.floor(diff / 60000);
@@ -63,7 +65,7 @@ const PaymentSession = () => {
   };
 
   const handlePayment = async () => {
-    if (!session || session.isExpired) return;
+    if (!session || session.isExpired || localExpired) return;
     
     setProcessing(true);
     try {
@@ -188,7 +190,7 @@ const PaymentSession = () => {
             </div>
 
             <div className="flex flex-col gap-6">
-              {session.status !== 'SUCCESS' && !session.isExpired && (
+              {session.status !== 'SUCCESS' && !session.isExpired && !localExpired && (
                 <button 
                   onClick={handlePayment}
                   disabled={processing}
@@ -201,7 +203,7 @@ const PaymentSession = () => {
                 </button>
               )}
 
-              {session.isExpired && session.status !== 'SUCCESS' && (
+              { (session.isExpired || localExpired) && session.status !== 'SUCCESS' && (
                 <div className="text-center p-10 bg-black/20 rounded-[2rem] border border-white/5">
                   <p className="text-[#f43f5e] font-black uppercase tracking-widest mb-6">SESSION EXPIRED</p>
                   <button onClick={() => navigate('/')} className="text-xs font-black uppercase tracking-widest hover:text-[#72BAA9] transition-colors">Return to Shop to Start Over</button>
